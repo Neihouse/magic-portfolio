@@ -1,13 +1,27 @@
 import { getPosts } from "@/app/utils/utils";
 import { Column } from "@/once-ui/components";
 import { ProjectCard } from "@/components";
+import { Suspense } from "react";
 
 interface ProjectsProps {
   range?: [number, number?];
 }
 
-export function Projects({ range }: ProjectsProps) {
-  let allProjects = getPosts(["src", "app", "work", "projects"]);
+// Loading component to show while data is loading
+function ProjectsSkeleton() {
+  return (
+    <Column fillWidth gap="xl" marginBottom="40" paddingX="l">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="w-full h-64 bg-gray-200 animate-pulse rounded-lg"></div>
+      ))}
+    </Column>
+  );
+}
+
+// Project list component that fetches and displays projects
+async function ProjectList({ range }: ProjectsProps) {
+  // Fetch projects asynchronously
+  const allProjects = await getPosts(["src", "app", "work", "projects"]);
 
   const sortedProjects = allProjects.sort((a, b) => {
     return new Date(b.metadata.publishedAt).getTime() - new Date(a.metadata.publishedAt).getTime();
@@ -33,5 +47,15 @@ export function Projects({ range }: ProjectsProps) {
         />
       ))}
     </Column>
+  );
+}
+
+// Main export that wraps the async component in Suspense
+export function Projects(props: ProjectsProps) {
+  return (
+    <Suspense fallback={<ProjectsSkeleton />}>
+      {/* @ts-expect-error Server Component */}
+      <ProjectList {...props} />
+    </Suspense>
   );
 }

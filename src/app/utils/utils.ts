@@ -1,6 +1,7 @@
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
+import { notFound } from 'next/navigation';
 
 type Team = {
   name: string;
@@ -20,42 +21,48 @@ type Metadata = {
   link?: string;
 };
 
-import { notFound } from 'next/navigation';
+// Add caching
+const postCache = new Map();
 
-function getMDXFiles(dir: string) {
-  if (!fs.existsSync(dir)) {
+async function getMDXFiles(dir: string) {
+  try {
+    const files = await fs.readdir(dir);
+    return files.filter((file) => path.extname(file) === ".mdx");
+  } catch (error) {
+    console.error(`Error reading directory ${dir}:`, error);
     notFound();
   }
-
-  return fs.readdirSync(dir).filter((file) => path.extname(file) === ".mdx");
 }
 
-function readMDXFile(filePath: string) {
-    if (!fs.existsSync(filePath)) {
-        notFound();
-    }
+async function readMDXFile(filePath: string) {
+  try {
+    const rawContent = await fs.readFile(filePath, "utf-8");
+    const { data, content } = matter(rawContent);
 
-  const rawContent = fs.readFileSync(filePath, "utf-8");
-  const { data, content } = matter(rawContent);
+    const metadata: Metadata = {
+      title: data.title || "",
+      publishedAt: data.publishedAt,
+      summary: data.summary || "",
+      image: data.image || "",
+      images: data.images || [],
+      tag: data.tag || [],
+      team: data.team || [],
+      link: data.link || "",
+    };
 
-  const metadata: Metadata = {
-    title: data.title || "",
-    publishedAt: data.publishedAt,
-    summary: data.summary || "",
-    image: data.image || "",
-    images: data.images || [],
-    tag: data.tag || [],
-    team: data.team || [],
-    link: data.link || "",
-  };
-
-  return { metadata, content };
+    return { metadata, content };
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error);
+    notFound();
+  }
 }
 
-function getMDXData(dir: string) {
-  const mdxFiles = getMDXFiles(dir);
-  return mdxFiles.map((file) => {
-    const { metadata, content } = readMDXFile(path.join(dir, file));
+async function getMDXData(dir: string) {
+  const mdxFiles = await getMDXFiles(dir);
+  
+  const postsPromises = mdxFiles.map(async (file) => {
+    const filePath = path.join(dir, file);
+    const { metadata, content } = await readMDXFile(filePath);
     const slug = path.basename(file, path.extname(file));
 
     return {
@@ -64,9 +71,27 @@ function getMDXData(dir: string) {
       content,
     };
   });
+
+  return Promise.all(postsPromises);
 }
 
-export function getPosts(customPath = ["", "", "", ""]) {
+export async function getPosts(customPath = ["", "", "", ""]) {
   const postsDir = path.join(process.cwd(), ...customPath);
-  return getMDXData(postsDir);
+  
+  // Check cache first
+  const cacheKey = postsDir;
+  if (postCache.has(cacheKey)) {
+    return postCache.get(cacheKey);
+  }
+
+  try {
+    const posts = await getMDXData(postsDir);
+    
+    // Store in cache
+    postCache.set(cacheKey, posts);
+    return posts;
+  } catch (error) {
+    console.error('Error getting posts:', error);
+    return [];
+  }
 }
