@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 import { Fade, Flex, Line, ToggleButton } from "@/once-ui/components";
 import styles from "@/components/Header.module.scss";
@@ -59,7 +60,18 @@ export const Header = () => {
         horizontal="center"
       >
         <Flex paddingLeft="12" fillWidth vertical="center" textVariant="body-default-s">
-          {display.location && <Flex hide="s">{person.location}</Flex>}
+          {display.location && (
+            <Flex hide="s" gap="8" vertical="center">
+              <Image 
+                src="/LOGO.png" 
+                alt="Primordial Groove Logo" 
+                width={30} 
+                height={30} 
+                className={styles.logo}
+              />
+              {person.locationDisplay || person.location}
+            </Flex>
+          )}
         </Flex>
         <Flex fillWidth horizontal="center">
           <Flex
@@ -92,20 +104,20 @@ export const Header = () => {
                   />
                 </>
               )}
-              {routes["/work"] && (
+              {routes["/events"] && (
                 <>
                   <ToggleButton
                     className="s-flex-hide"
-                    prefixIcon="grid"
-                    href="/work"
+                    prefixIcon="ticket"
+                    href="/events"
                     label={work.label}
-                    selected={pathname.startsWith("/work")}
+                    selected={pathname.startsWith("/events")}
                   />
                   <ToggleButton
                     className="s-flex-show"
-                    prefixIcon="grid"
-                    href="/work"
-                    selected={pathname.startsWith("/work")}
+                    prefixIcon="ticket"
+                    href="/events"
+                    selected={pathname.startsWith("/events")}
                   />
                 </>
               )}
